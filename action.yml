@@ -1,0 +1,51 @@
+name: GitHub Organization Metrics Action
+
+inputs:
+  token:
+    description: 'A Personal Access token with repo scope'
+    required: true
+  org:
+    description: 'GitHub organization to retrieve data from'
+    default: ''
+    required: false
+  days:
+    description: 'Amount of days in the past to collect data for'
+    default: '30'
+    required: false
+  sort:
+    description: 'Select sorting column'
+    # openedPullRequests, openedPullRequestsInternal, openedPullRequestsExternal, openedPullRequestsFirstTimeContributor, mergedPullRequests, closedPullRequests
+    # openPullRequests, averagePullRequestMergeTime, pullRequests, internalPullRequests, externalPullRequests
+    # openedIssues, openedIssuesInternal, openedIssuesExternal, openedIssuesFirstTimeContributor, closedIssues
+    # issues, internalIssues, externalIssues, openIssues, staleIssues, percentStaleIssues, oldIssues, percentOldIssues, percentOldIssues, percentIssuesClosedByPullRequest, averageIssueOpenTime
+    # contributorsThisPeriod, contributorsThisPeriodInternal, contributorsThisPeriodExternal, contributorsThisPeriodFirstTimeContributor
+    # contributorsAllTime, contributorsAllTimeInternal, contributorsAllTimeExternal
+    # stars, watches, forks  
+    default: 'openedPullRequests'
+    required: false
+  committer-name:
+    description: 'The name of the committer that will appear in the Git history'
+    default: 'github-actions'
+    required: false
+  committer-email:
+    description: 'The committer email that will appear in the Git history'
+    default: 'github-actions@github.com'
+    required: false
+  stale:
+    description: 'Amount of days for an issue to be marked as stale'
+    default: '14'
+    required: false
+  old:
+    description: 'Amount of days for an issue to be marked as old'
+    default: '120'
+    required: false
+  fromdate:
+    description: 'The date from which to start collecting data'
+    required: false
+  todate:
+    description: 'The date to which to stop collecting data'
+    required: false
+
+runs:
+  using: 'node12'
+  main: 'dist/index.js'
