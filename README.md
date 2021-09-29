@@ -2,6 +2,10 @@
 
 > A GitHub Action to generate a report that contains various metrics for all repositories belonging to a GitHub organization.
 
+## Usage
+
+By default the example [workflow](https://docs.github.com/en/actions/reference/workflow-syntax-for-github-actions) below runs on a monthly [schedule](https://docs.github.com/en/actions/reference/events-that-trigger-workflows#scheduled-events) using the amount of days from today as the interval set in `action.yml` (default 30 days) but can also be triggered manually using a [workflow_dispatch](https://docs.github.com/en/actions/reference/events-that-trigger-workflows#manual-events) with the same setting or using a historic interval as dispatch inputs.
+
 ```yml
 name: Organization Metrics Report
 
@@ -26,7 +30,7 @@ jobs:
         uses: actions/checkout@v2
 
       - name: Get organization metrics
-        uses: nicklegan/github-org-metrics-action@v1.0.0
+        uses: nicklegan/github-org-metrics-action@v1.0.1
         with:
           token: ${{ secrets.ORG_TOKEN }}
           fromdate: ${{ github.event.inputs.fromdate }} # Used for workflow dispatch input

@@ -1,6 +1,6 @@
 {
   "name": "github-org-metrics-action",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A GitHub Action to generate a report that contains various metrics for all repositories belonging to a GitHub organization.",
   "author": {
     "name": "GitHub Professional Services",
