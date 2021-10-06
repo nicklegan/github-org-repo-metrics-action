@@ -1,4 +1,5 @@
-name: GitHub Organization Metrics Action
+name: GitHub Organization Repository Metrics Report Action
+description: 'A GitHub Action to generate a report that contains various metrics for all repositories belonging to a GitHub organization.'
 
 inputs:
   token:
@@ -49,3 +50,7 @@ inputs:
 runs:
   using: 'node12'
   main: 'dist/index.js'
+
+branding:
+  icon: 'list'
+  color: 'blue'
