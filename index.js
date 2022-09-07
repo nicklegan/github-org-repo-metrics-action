@@ -211,12 +211,6 @@ async function queryGitHub(repoName) {
           totalCount
         }
       }
-      rateLimit {
-        limit
-        cost
-        remaining
-        resetAt
-      }
     }
   `
   try {
@@ -362,12 +356,6 @@ async function queryIssuesDeep(repoName, cursor, issues) {
           }
         }
       }
-      rateLimit {
-        limit
-        cost
-        remaining
-        resetAt
-      }
     }
   `
 
@@ -420,12 +408,6 @@ async function queryPullRequestsDeep(repoName, cursor, pullRequests) {
             endCursor
           }
         }
-      }
-      rateLimit {
-        limit
-        cost
-        remaining
-        resetAt
       }
     }
   `
