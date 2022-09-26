@@ -15,22 +15,11 @@ inputs:
     required: false
   sort:
     description: 'Select sorting column'
-    # openedPullRequests, openedPullRequestsInternal, openedPullRequestsExternal, openedPullRequestsFirstTimeContributor, mergedPullRequests, closedPullRequests
-    # openPullRequests, averagePullRequestMergeTime, pullRequests, internalPullRequests, externalPullRequests
-    # openedIssues, openedIssuesInternal, openedIssuesExternal, openedIssuesFirstTimeContributor, closedIssues
-    # issues, internalIssues, externalIssues, openIssues, staleIssues, percentStaleIssues, oldIssues, percentOldIssues, percentOldIssues, percentIssuesClosedByPullRequest, averageIssueOpenTime
-    # contributorsThisPeriod, contributorsThisPeriodInternal, contributorsThisPeriodExternal, contributorsThisPeriodFirstTimeContributor
-    # contributorsAllTime, contributorsAllTimeInternal, contributorsAllTimeExternal
-    # stars, watches, forks  
     default: 'openedPullRequests'
     required: false
-  committer-name:
-    description: 'The name of the committer that will appear in the Git history'
-    default: 'github-actions'
-    required: false
-  committer-email:
-    description: 'The committer email that will appear in the Git history'
-    default: 'github-actions@github.com'
+  sort-order:
+    description: 'Selected column sorting direction'
+    default: 'desc'
     required: false
   stale:
     description: 'Amount of days for an issue to be marked as stale'
@@ -40,15 +29,37 @@ inputs:
     description: 'Amount of days for an issue to be marked as old'
     default: '120'
     required: false
+  json:
+    description: 'Optional report export in JSON format'
+    default: 'false'
+    required: false
+  diff-report:
+    description: 'Use identical file name for future reports'
+    default: 'false'
+    required: false
   fromdate:
     description: 'The date from which to start collecting data'
     required: false
   todate:
     description: 'The date to which to stop collecting data'
     required: false
+  committer-name:
+    description: 'The name of the committer that will appear in the Git history'
+    default: 'github-actions'
+    required: false
+  committer-email:
+    description: 'The committer email that will appear in the Git history'
+    default: 'github-actions@github.com'
+    required: false
+  appid:
+    required: false
+  privatekey:
+    required: false
+  installationid:
+    required: false
 
 runs:
-  using: 'node12'
+  using: 'node16'
   main: 'dist/index.js'
 
 branding:

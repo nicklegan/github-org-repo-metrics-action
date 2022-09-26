@@ -1,6 +1,7 @@
 blank_issues_enabled: false
 
 contact_links:
-  - name: GitHub Professional Services
+  - name: GitHub Expert Services
     url: https://services.github.com/#contact
-    about: Contact GitHub Professional Services
+    about: Contact GitHub Expert Services
+    

@@ -50,7 +50,6 @@ If you are the current maintainer of this action:
 [pulls]: https://github.com/github/github-demo-stack/pulls
 [pr]: https://github.com/github/github-demo-stack/compare
 [fork]: https://github.com/github/github-demo-stack/fork
-
 # Contributing
 
 :wave: Hi there!

@@ -1,9 +1,9 @@
 {
   "name": "github-org-repo-metrics-action",
-  "version": "1.0.2",
+  "version": "2.0.0",
   "description": "A GitHub Action to generate a report that contains various metrics for all repositories belonging to a GitHub organization.",
   "author": {
-    "name": "GitHub Professional Services",
+    "name": "GitHub Expert Services",
     "email": "services@github.com",
     "url": "https://services.github.com"
   },
@@ -15,7 +15,7 @@
     }
   ],
   "license": "MIT",
-  "repository": "github:0ctocat/github-org-metrics-action",
+  "repository": "github:nicklegan/github-org-repo-metrics-action",
   "engines": {
     "node": ">=16",
     "npm": ">=7"
@@ -25,11 +25,10 @@
     "build": "npx @vercel/ncc build index.js --out dist --license licenses.txt --quiet --minify"
   },
   "dependencies": {
-    "@actions/core": "^1.6.0",
-    "@actions/github": "^5.0.0",
-    "@octokit/plugin-retry": "^3.0.9",
-    "@octokit/plugin-throttling": "^3.5.2",
-    "array-sort": "^1.0.0",
-    "csv-stringify": "^5.6.5"
+    "@actions/core": "^1.9.1",
+    "@actions/github": "^5.0.3",
+    "@octokit/auth-app": "^4.0.5",
+    "natural-orderby": "^2.0.3",
+    "csv": "^6.2.0"
   }
 }
