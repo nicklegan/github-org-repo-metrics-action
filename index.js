@@ -1087,7 +1087,7 @@ async function pushCSV(data) {
       }
     } catch (err) {}
 
-    console.log(`Pushing CSV report to repository path: ${reportPath}`)
+    console.log(`Pushing CSV report to repository path: ${reportPath.path}`)
 
     await octokit.rest.repos.createOrUpdateFileContents({
       ...opts,
@@ -1133,7 +1133,7 @@ async function json(data) {
       }
     } catch (err) {}
 
-    console.log(`Pushing JSON report to repository path: ${reportPath}`)
+    console.log(`Pushing JSON report to repository path: ${reportPath.path}`)
 
     await octokit.rest.repos.createOrUpdateFileContents({
       ...opts,
