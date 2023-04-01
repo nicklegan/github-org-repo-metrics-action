@@ -29,6 +29,6 @@
     "@actions/github": "^5.0.3",
     "@octokit/auth-app": "^4.0.5",
     "natural-orderby": "^2.0.3",
-    "csv": "^6.2.0"
+    "csv": "^6.2.8"
   }
 }
