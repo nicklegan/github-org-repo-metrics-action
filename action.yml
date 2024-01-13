@@ -1,5 +1,5 @@
 name: GitHub Organization Repository Metrics Report Action for test
-description: 'A GitHub Action to generate a report that contains various metrics for all repositories belonging to a GitHub organization. source from nicklegan'
+description: 'source from nicklegan'
 
 inputs:
   token:
