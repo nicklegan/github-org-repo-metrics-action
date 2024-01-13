@@ -108,7 +108,7 @@ function averageList(list) {
 
 // Concatenates a list of lists into one shallow list.
 function concatenateLists(lists) {
-  return lists.reduce((list1, list2) => list1.concat(list2))
+  return lists.reduce((list1, list2) => list1.concat(list2), [])
 }
 
 // Calculates the union of a group of Sets.
@@ -126,7 +126,7 @@ function unionSets(...iterables) {
 
 // Calculates the number of items in the union of a list of sets.
 function unionSetSize(sets) {
-  return sets.reduce((set1, set2) => unionSets(set1, set2)).size
+  return sets.reduce((set1, set2) => unionSets(set1, set2), new Set()).size
 }
 
 // Calculates the total star count for a repository.
