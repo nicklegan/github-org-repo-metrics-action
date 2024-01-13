@@ -79,7 +79,7 @@ if (re.test(fromdate, todate) !== true) {
       await json(processArray)
     }
   } catch (error) {
-    core.setFailed(error.message)
+    core.setFailed(JSON.stringify(error))
   }
 })()
 
@@ -213,7 +213,7 @@ async function getRepos(repoArray) {
       }
     } while (hasNextPageMember)
   } catch (error) {
-    core.setFailed(error.message)
+    core.setFailed(JSON.stringify(error))
   }
 }
 
@@ -391,7 +391,7 @@ async function queryGitHub(repoArray, queryArray) {
       console.log(`${dataJSON.repository.name} (Rate limit: ${dataJSON.rateLimit.remaining})`)
     }
   } catch (error) {
-    core.setFailed(error.message)
+    core.setFailed(JSON.stringify(error))
   }
 }
 
@@ -541,7 +541,7 @@ async function queryIssuesDeep(repoName, cursor, issues) {
     }
     return issues
   } catch (error) {
-    core.setFailed(error.message)
+    core.setFailed(JSON.stringify(error))
   }
 }
 
@@ -600,7 +600,7 @@ async function queryPullRequestsDeep(repoName, cursor, pullRequests) {
     }
     return pullRequests
   } catch (error) {
-    core.setFailed(error.message)
+    core.setFailed(JSON.stringify(error))
   }
 }
 
@@ -1094,7 +1094,7 @@ async function pushCSV(data) {
       ...reportPath
     })
   } catch (error) {
-    core.setFailed(error.message)
+    core.setFailed(JSON.stringify(error))
   }
 }
 
@@ -1140,6 +1140,6 @@ async function json(data) {
       ...reportPath
     })
   } catch (error) {
-    core.setFailed(error.message)
+    core.setFailed(JSON.stringify(error))
   }
 }
