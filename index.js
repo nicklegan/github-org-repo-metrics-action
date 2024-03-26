@@ -1065,7 +1065,7 @@ async function pushCSV(data) {
     const opts = {
       owner,
       repo,
-      path: reportPath,
+      path: reportPath.replace(/:/g, '_'),
       message: `${new Date().toISOString().slice(0, 10)} Organization metrics report`,
       content: Buffer.from(csv).toString('base64'),
       committer: {
@@ -1111,7 +1111,7 @@ async function json(data) {
     const opts = {
       owner,
       repo,
-      path: reportPath,
+      path: reportPath.replace(/:/g, '_'),
       message: `${new Date().toISOString().slice(0, 10)} repo collaborator report`,
       content: Buffer.from(JSON.stringify(sortArray, null, 2)).toString('base64'),
       committer: {
