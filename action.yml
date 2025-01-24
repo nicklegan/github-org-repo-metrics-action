@@ -4,9 +4,13 @@ description: 'A GitHub Action to generate a report that contains various metrics
 inputs:
   token:
     description: 'A Personal Access token with repo scope'
-    required: true
+    required: false
   org:
     description: 'GitHub organization to retrieve data from'
+    default: ''
+    required: false
+  team:
+    description: 'GitHub team to retrieve data from'
     default: ''
     required: false
   days:
@@ -59,7 +63,7 @@ inputs:
     required: false
 
 runs:
-  using: 'node16'
+  using: 'node20'
   main: 'dist/index.js'
 
 branding:
