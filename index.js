@@ -1,3 +1,4 @@
+const { repoQuery, teamRepoQuery, repoDetailsQuery, issueDetailsQuery, pullRequestDetailsQuery } = require('./src/graphql')
 const core = require('@actions/core')
 const github = require('@actions/github')
 const { GitHub } = require('@actions/github/lib/utils')
@@ -11,8 +12,9 @@ const appId = core.getInput('appid', { required: false })
 const privateKey = core.getInput('privatekey', { required: false })
 const installationId = core.getInput('installationid', { required: false })
 
-const token = core.getInput('token', { required: true })
+const token = core.getInput('token', { required: false })
 const org = core.getInput('org', { required: false }) || eventPayload.organization.login
+const team = core.getInput('team', { required: false }) || ''
 const days = core.getInput('days', { required: false }) || '30'
 const fromdate = core.getInput('fromdate', { required: false }) || ''
 const todate = core.getInput('todate', { required: false }) || ''
@@ -71,7 +73,11 @@ if (re.test(fromdate, todate) !== true) {
     let repoArray = []
     let queryArray = []
     let processArray = []
-    await getRepos(repoArray)
+    if (team) {
+      await getTeamRepos(repoArray)
+    } else {
+      await getRepos(repoArray)
+    }
     await queryGitHub(repoArray, queryArray)
     processRepo(queryArray, processArray)
     await pushCSV(processArray)
@@ -79,7 +85,7 @@ if (re.test(fromdate, todate) !== true) {
       await json(processArray)
     }
   } catch (error) {
-    core.setFailed(error.message)
+    core.setFailed(JSON.stringify(error))
   }
 })()
 
@@ -108,7 +114,7 @@ function averageList(list) {
 
 // Concatenates a list of lists into one shallow list.
 function concatenateLists(lists) {
-  return lists.reduce((list1, list2) => list1.concat(list2))
+  return lists.reduce((list1, list2) => list1.concat(list2), [])
 }
 
 // Calculates the union of a group of Sets.
@@ -126,7 +132,7 @@ function unionSets(...iterables) {
 
 // Calculates the number of items in the union of a list of sets.
 function unionSetSize(sets) {
-  return sets.reduce((set1, set2) => unionSets(set1, set2)).size
+  return sets.reduce((set1, set2) => unionSets(set1, set2), new Set()).size
 }
 
 // Calculates the total star count for a repository.
@@ -149,7 +155,7 @@ function getIssueCount(repo) {
   return repo.repository.issues.totalCount
 }
 
-//Calculates the total pull request count for a repository.
+// Calculates the total pull request count for a repository.
 function getPullRequestCount(repo) {
   return repo.repository.pullRequests.totalCount
 }
@@ -159,12 +165,12 @@ function authorIsInternal(authorAssociation) {
   return authorAssociation === 'CONTRIBUTOR' || authorAssociation === 'OWNER' || authorAssociation === 'MEMBER' || authorAssociation === 'FIRST_TIMER' || authorAssociation === 'FIRST_TIME_CONTRIBUTOR'
 }
 
-//Determines if an authorAssociation indicates the author is external
+// Determines if an authorAssociation indicates the author is external
 function authorIsExternal(authorAssociation) {
   return authorAssociation === 'COLLABORATOR' || authorAssociation === 'NONE'
 }
 
-//Determines if an authorAssociation indicates the author is a first time contributor
+// Determines if an authorAssociation indicates the author is a first time contributor
 function authorIsFirstTimeContributor(authorAssociation) {
   return authorAssociation === 'FIRST_TIMER' || authorAssociation === 'FIRST_TIME_CONTRIBUTOR'
 }
@@ -172,206 +178,76 @@ function authorIsFirstTimeContributor(authorAssociation) {
 // Query all organization repository names
 async function getRepos(repoArray) {
   try {
-    let paginationMember = null
-    const query = /* GraphQL */ `
-      query ($owner: String!, $cursorID: String) {
-        organization(login: $owner) {
-          repositories(first: 100, after: $cursorID) {
-            nodes {
-              name
-            }
-            pageInfo {
-              hasNextPage
-              endCursor
-            }
-          }
-        }
-      }
-    `
-
-    let hasNextPageMember = false
+    let paginationRepo = null
+    let hasNextPageRepo = false
     let dataJSON = null
+
+    console.log(`Retrieving metrics for all repos in org ${org}`)
 
     do {
       dataJSON = await octokit.graphql({
-        query,
+        query: repoQuery,
         owner: org,
-        cursorID: paginationMember
+        cursorID: paginationRepo
       })
 
       const repos = dataJSON.organization.repositories.nodes.map((repo) => repo.name)
 
-      hasNextPageMember = dataJSON.organization.repositories.pageInfo.hasNextPage
+      hasNextPageRepo = dataJSON.organization.repositories.pageInfo.hasNextPage
 
       for (const repo of repos) {
-        if (hasNextPageMember) {
-          paginationMember = dataJSON.organization.repositories.pageInfo.endCursor
+        if (hasNextPageRepo) {
+          paginationRepo = dataJSON.organization.repositories.pageInfo.endCursor
         } else {
-          paginationMember = null
+          paginationRepo = null
         }
         repoArray.push(repo)
       }
-    } while (hasNextPageMember)
+    } while (hasNextPageRepo)
   } catch (error) {
-    core.setFailed(error.message)
+    core.setFailed(JSON.stringify(error))
   }
 }
 
-//Queries the GitHub API for information about a specific repo and returns the resulting data.
+// Query all organization repos for a team
+async function getTeamRepos(repoArray) {
+  try {
+    let paginationRepo = null
+    let hasNextPageRepo = false
+    let dataJSON = null
+
+    console.log(`Retrieving metrics for team ${team} in org ${org}`)
+
+    do {
+      dataJSON = await octokit.graphql({
+        query: teamRepoQuery,
+        owner: org,
+        team: team,
+        cursorID: paginationRepo
+      })
+
+      const repos = dataJSON.organization.team.repositories.nodes.map((repo) => repo.name)
+
+      hasNextPageRepo = dataJSON.organization.team.repositories.pageInfo.hasNextPage
+
+      for (const repo of repos) {
+        if (hasNextPageRepo) {
+          paginationRepo = dataJSON.organization.team.repositories.pageInfo.endCursor
+        }
+        repoArray.push(repo)
+      }
+    } while (hasNextPageRepo)
+  } catch (error) {
+    core.setFailed(JSON.stringify(error))
+  }
+}
+
+// Queries the GitHub API for information about a specific repo and returns the resulting data.
 async function queryGitHub(repoArray, queryArray) {
-  const query = /* GraphQL */ `
-    query GitHub($owner: String!, $repo: String!) {
-      repository(owner: $owner, name: $repo) {
-        name
-        issues(first: 20) {
-          totalCount
-          nodes {
-            createdAt
-            state
-            closedAt
-            author {
-              login
-            }
-            authorAssociation
-            timelineItems(last: 100) {
-              nodes {
-                __typename
-                ... on AddedToProjectEvent {
-                  createdAt
-                }
-                ... on AssignedEvent {
-                  createdAt
-                }
-                ... on ClosedEvent {
-                  createdAt
-                  closer {
-                    __typename
-                    ... on PullRequest {
-                      id
-                    }
-                    ... on Commit {
-                      id
-                    }
-                  }
-                }
-                ... on CommentDeletedEvent {
-                  createdAt
-                }
-                ... on ConvertedNoteToIssueEvent {
-                  createdAt
-                }
-                ... on CrossReferencedEvent {
-                  createdAt
-                }
-                ... on DemilestonedEvent {
-                  createdAt
-                }
-                ... on IssueComment {
-                  createdAt
-                }
-                ... on LabeledEvent {
-                  createdAt
-                }
-                ... on LockedEvent {
-                  createdAt
-                }
-                ... on MentionedEvent {
-                  createdAt
-                }
-                ... on MilestonedEvent {
-                  createdAt
-                }
-                ... on MovedColumnsInProjectEvent {
-                  createdAt
-                }
-                ... on PinnedEvent {
-                  createdAt
-                }
-                ... on ReferencedEvent {
-                  createdAt
-                }
-                ... on RemovedFromProjectEvent {
-                  createdAt
-                }
-                ... on RenamedTitleEvent {
-                  createdAt
-                }
-                ... on ReopenedEvent {
-                  createdAt
-                }
-                ... on SubscribedEvent {
-                  createdAt
-                }
-                ... on TransferredEvent {
-                  createdAt
-                }
-                ... on UnassignedEvent {
-                  createdAt
-                }
-                ... on UnlabeledEvent {
-                  createdAt
-                }
-                ... on UnlockedEvent {
-                  createdAt
-                }
-                ... on UnpinnedEvent {
-                  createdAt
-                }
-                ... on UnsubscribedEvent {
-                  createdAt
-                }
-                ... on UserBlockedEvent {
-                  createdAt
-                }
-              }
-            }
-          }
-          pageInfo {
-            startCursor
-            hasNextPage
-            endCursor
-          }
-        }
-        pullRequests(first: 20) {
-          totalCount
-          nodes {
-            createdAt
-            state
-            mergedAt
-            closedAt
-            author {
-              login
-            }
-            authorAssociation
-          }
-          pageInfo {
-            startCursor
-            hasNextPage
-            endCursor
-          }
-        }
-        stargazers {
-          totalCount
-        }
-        forks {
-          totalCount
-        }
-        watchers {
-          totalCount
-        }
-      }
-      rateLimit {
-        limit
-        cost
-        remaining
-        resetAt
-      }
-    }
-  `
   try {
     for (const repoName of repoArray) {
       const dataJSON = await octokit.graphql({
-        query,
+        query: repoDetailsQuery,
         owner: org,
         repo: repoName
       })
@@ -391,140 +267,16 @@ async function queryGitHub(repoArray, queryArray) {
       console.log(`${dataJSON.repository.name} (Rate limit: ${dataJSON.rateLimit.remaining})`)
     }
   } catch (error) {
-    core.setFailed(error.message)
+    core.setFailed(JSON.stringify(error))
   }
 }
 
-// Recursively queries GitHub for 20 additional issues until all of the issues have been retrieved.
+// Recursively queries GitHub API for 20 additional issues until all of the issues have been retrieved.
 async function queryIssuesDeep(repoName, cursor, issues) {
-  // Get the issues query
-  const query = /* GraphQL */ `
-    query GitHub($owner: String!, $repo: String!, $cursor: String!) {
-      repository(owner: $owner, name: $repo) {
-        name
-        issues(first: 20, after: $cursor) {
-          totalCount
-          nodes {
-            createdAt
-            state
-            closedAt
-            author {
-              login
-            }
-            authorAssociation
-            timelineItems(last: 100) {
-              nodes {
-                __typename
-                ... on AddedToProjectEvent {
-                  createdAt
-                }
-                ... on AssignedEvent {
-                  createdAt
-                }
-                ... on ClosedEvent {
-                  createdAt
-                  closer {
-                    __typename
-                    ... on PullRequest {
-                      id
-                    }
-                    ... on Commit {
-                      id
-                    }
-                  }
-                }
-                ... on CommentDeletedEvent {
-                  createdAt
-                }
-                ... on ConvertedNoteToIssueEvent {
-                  createdAt
-                }
-                ... on CrossReferencedEvent {
-                  createdAt
-                }
-                ... on DemilestonedEvent {
-                  createdAt
-                }
-                ... on IssueComment {
-                  createdAt
-                }
-                ... on LabeledEvent {
-                  createdAt
-                }
-                ... on LockedEvent {
-                  createdAt
-                }
-                ... on MentionedEvent {
-                  createdAt
-                }
-                ... on MilestonedEvent {
-                  createdAt
-                }
-                ... on MovedColumnsInProjectEvent {
-                  createdAt
-                }
-                ... on PinnedEvent {
-                  createdAt
-                }
-                ... on ReferencedEvent {
-                  createdAt
-                }
-                ... on RemovedFromProjectEvent {
-                  createdAt
-                }
-                ... on RenamedTitleEvent {
-                  createdAt
-                }
-                ... on ReopenedEvent {
-                  createdAt
-                }
-                ... on SubscribedEvent {
-                  createdAt
-                }
-                ... on TransferredEvent {
-                  createdAt
-                }
-                ... on UnassignedEvent {
-                  createdAt
-                }
-                ... on UnlabeledEvent {
-                  createdAt
-                }
-                ... on UnlockedEvent {
-                  createdAt
-                }
-                ... on UnpinnedEvent {
-                  createdAt
-                }
-                ... on UnsubscribedEvent {
-                  createdAt
-                }
-                ... on UserBlockedEvent {
-                  createdAt
-                }
-              }
-            }
-          }
-          pageInfo {
-            startCursor
-            hasNextPage
-            endCursor
-          }
-        }
-      }
-      rateLimit {
-        limit
-        cost
-        remaining
-        resetAt
-      }
-    }
-  `
-
   try {
     // Request the additional issues
     const dataJSON = await octokit.graphql({
-      query,
+      query: issueDetailsQuery,
       owner: org,
       repo: repoName,
       cursor: cursor
@@ -541,49 +293,16 @@ async function queryIssuesDeep(repoName, cursor, issues) {
     }
     return issues
   } catch (error) {
-    core.setFailed(error.message)
+    core.setFailed(JSON.stringify(error))
   }
 }
 
-// Recursively queries GitHub for 20 additional pull requests until all of the pull requests have been retrieved.
+// Recursively queries GitHub API for 20 additional pull requests until all of the pull requests have been retrieved.
 async function queryPullRequestsDeep(repoName, cursor, pullRequests) {
-  // Get the pull requests query
-  const query = /* GraphQL */ `
-    query GitHub($owner: String!, $repo: String!, $cursor: String!) {
-      repository(owner: $owner, name: $repo) {
-        name
-        pullRequests(first: 20, after: $cursor) {
-          totalCount
-          nodes {
-            createdAt
-            state
-            mergedAt
-            closedAt
-            author {
-              login
-            }
-            authorAssociation
-          }
-          pageInfo {
-            startCursor
-            hasNextPage
-            endCursor
-          }
-        }
-      }
-      rateLimit {
-        limit
-        cost
-        remaining
-        resetAt
-      }
-    }
-  `
-
   try {
     // Request the additional pull requests
     const dataJSON = await octokit.graphql({
-      query,
+      query: pullRequestDetailsQuery,
       owner: org,
       repo: repoName,
       cursor: cursor
@@ -600,7 +319,7 @@ async function queryPullRequestsDeep(repoName, cursor, pullRequests) {
     }
     return pullRequests
   } catch (error) {
-    core.setFailed(error.message)
+    core.setFailed(JSON.stringify(error))
   }
 }
 
@@ -742,12 +461,14 @@ function getIssueMetaData(repo) {
   }
 }
 
-// Calculates pull request meta deta for a repo (e.g. number of open pull requests)
+// Calculates pull request meta data for a repo (e.g. number of open pull requests)
 function getPullRequestMetaData(repo) {
   // Set up
   let internalPullRequests = 0
   let externalPullRequests = 0
   let openPullRequests = 0
+  let mergedPullRequestsAllTime = 0
+  let closedPullRequestsAllTime = 0
   let openedPullRequests = 0
   let openedPullRequestsInternal = 0
   let openedPullRequestsExternal = 0
@@ -786,6 +507,16 @@ function getPullRequestMetaData(repo) {
 
         if (pullRequest.state === 'OPEN') {
           openPullRequests += 1
+        }
+
+        // Total number of merged pull requests of all time
+        if (pullRequest.state === 'MERGED') {
+          mergedPullRequestsAllTime += 1
+        }
+
+        // Total number of closed pull requests of all time
+        if (pullRequest.state === 'CLOSED') {
+          closedPullRequestsAllTime += 1
         }
 
         // Check if pull request was created during the time period specified
@@ -837,6 +568,8 @@ function getPullRequestMetaData(repo) {
     internalPullRequests: internalPullRequests,
     externalPullRequests: externalPullRequests,
     openPullRequests: openPullRequests,
+    mergedPullRequestsAllTime: mergedPullRequestsAllTime,
+    closedPullRequestsAllTime: closedPullRequestsAllTime,
     openedPullRequests: openedPullRequests,
     openedPullRequestsInternal: openedPullRequestsInternal,
     openedPullRequestsExternal: openedPullRequestsExternal,
@@ -855,14 +588,14 @@ function getPullRequestMetaData(repo) {
   }
 }
 
-// Processes the raw repo data from GitHub by calculating the relevant metrics and returning a JSON of these metrics for the .csv report.
+// Processes the raw repo data from GitHub by calculating the relevant metrics and returning a JSON of these metrics for the CSV/JSON report.
 function processRepo(queryArray, processArray) {
   queryArray.map((repo) => {
     // Set up
     let issueMetaData = getIssueMetaData(repo)
     let pullRequestMetaData = getPullRequestMetaData(repo)
     let contributorsListAllTime = unionSets(issueMetaData.contributorsListAllTime, pullRequestMetaData.contributorsListAllTime)
-    let contributorsListAllTimeInteral = unionSets(issueMetaData.contributorsListAllTimeInternal, pullRequestMetaData.contributorsListAllTimeInternal)
+    let contributorsListAllTimeInternal = unionSets(issueMetaData.contributorsListAllTimeInternal, pullRequestMetaData.contributorsListAllTimeInternal)
     let contributorsListAllTimeExternal = unionSets(issueMetaData.contributorsListAllTimeExternal, pullRequestMetaData.contributorsListAllTimeExternal)
     let contributorsListThisPeriod = unionSets(issueMetaData.contributorsListThisPeriod, pullRequestMetaData.contributorsListThisPeriod)
     let contributorsListThisPeriodInternal = unionSets(issueMetaData.contributorsListThisPeriodInternal, pullRequestMetaData.contributorsListThisPeriodInternal)
@@ -874,7 +607,7 @@ function processRepo(queryArray, processArray) {
       let repoData = {
         repo: repo.repository.name,
 
-        // These metrics are for all time as of the time of the script running
+        // These metrics are for the entire time since the repository has existed
         stars: getStarCount(repo),
         watches: getWatchCount(repo),
         forks: getForkCount(repo),
@@ -892,27 +625,29 @@ function processRepo(queryArray, processArray) {
         internalPullRequests: pullRequestMetaData.internalPullRequests,
         externalPullRequests: pullRequestMetaData.externalPullRequests,
         openPullRequests: pullRequestMetaData.openPullRequests,
+        mergedPullRequestsAllTime: pullRequestMetaData.mergedPullRequestsAllTime,
+        closedPullRequestsAllTime: pullRequestMetaData.closedPullRequestsAllTime,
         averagePullRequestMergeTime: averageList(pullRequestMetaData.openTimes),
         averagePullRequestMergeTimeInterval: averageList(pullRequestMetaData.openTimesInterval),
         contributorsAllTime: contributorsListAllTime.size,
-        contributorsAllTimeInternal: contributorsListAllTimeInteral.size,
+        contributorsAllTimeInternal: contributorsListAllTimeInternal.size,
         contributorsAllTimeExternal: contributorsListAllTimeExternal.size,
 
-        // These lists are included in repoData (but not the final .csv) to help with aggregation
+        // These lists are included in repoData (but not the final CSV/JSON report) to help with aggregation
         issueOpenTimes: issueMetaData.openTimes,
         closedByPullRequestIssues: issueMetaData.closedByPullRequestIssues,
         closedIssuesTotal: issueMetaData.closedIssuesTotal,
         pullRequestOpenTimes: pullRequestMetaData.openTimes,
         pullRequestOpenTimesInterval: pullRequestMetaData.openTimesInterval,
         contributorsListAllTime: contributorsListAllTime,
-        contributorsListAllTimeInternal: contributorsListAllTimeInteral,
+        contributorsListAllTimeInternal: contributorsListAllTimeInternal,
         contributorsListAllTimeExternal: contributorsListAllTimeExternal,
         contributorsListThisPeriod: contributorsListThisPeriod,
         contributorsListThisPeriodInternal: contributorsListThisPeriodInternal,
         contributorsListThisPeriodExternal: contributorsListThisPeriodExternal,
         contributorsListThisPeriodFirstTimeContributor: contributorsListThisPeriodFirstTimeContributor,
 
-        // These metrics are for the time period provided through command line arguments
+        // These metrics are for the time period provided through workflow inputs
         openedIssues: issueMetaData.openedIssues,
         openedIssuesInternal: issueMetaData.openedIssuesInternal,
         openedIssuesExternal: issueMetaData.openedIssuesExternal,
@@ -945,10 +680,32 @@ function aggregateRepoData(repos) {
   let totalData = {
     repo: 'TOTAL',
 
-    // These metrics are for all time as of the time of the script running
-    stars: sumList(repos.map((repo) => repo.stars)),
-    watches: sumList(repos.map((repo) => repo.watches)),
-    forks: sumList(repos.map((repo) => repo.forks)),
+    // These metrics are for the time period provided through workflow inputs
+    openedPullRequests: sumList(repos.map((repo) => repo.openedPullRequests)),
+    openedPullRequestsInternal: sumList(repos.map((repo) => repo.openedPullRequestsInternal)),
+    openedPullRequestsExternal: sumList(repos.map((repo) => repo.openedPullRequestsExternal)),
+    openedPullRequestsFirstTimeContributor: sumList(repos.map((repo) => repo.openedPullRequestsFirstTimeContributor)),
+    mergedPullRequests: sumList(repos.map((repo) => repo.mergedPullRequests)),
+    averagePullRequestMergeTimeInterval: averageList(concatenateLists(repos.map((repo) => repo.pullRequestOpenTimesInterval))),
+    closedPullRequests: sumList(repos.map((repo) => repo.closedPullRequests)),
+
+    // These metrics are for the entire time since the repository has existed
+    openPullRequests: sumList(repos.map((repo) => repo.openPullRequests)),
+    mergedPullRequestsAllTime: sumList(repos.map((repo) => repo.mergedPullRequestsAllTime)),
+    closedPullRequestsAllTime: sumList(repos.map((repo) => repo.closedPullRequestsAllTime)),
+    averagePullRequestMergeTime: averageList(concatenateLists(repos.map((repo) => repo.pullRequestOpenTimes))),
+    pullRequests: sumList(repos.map((repo) => repo.pullRequests)),
+    internalPullRequests: sumList(repos.map((repo) => repo.internalPullRequests)),
+    externalPullRequests: sumList(repos.map((repo) => repo.externalPullRequests)),
+
+    // These metrics are for the time period provided through workflow inputs
+    openedIssues: sumList(repos.map((repo) => repo.openedIssues)),
+    openedIssuesInternal: sumList(repos.map((repo) => repo.openedIssuesInternal)),
+    openedIssuesExternal: sumList(repos.map((repo) => repo.openedIssuesExternal)),
+    openedIssuesFirstTimeContributor: sumList(repos.map((repo) => repo.openedIssuesFirstTimeContributor)),
+    closedIssues: sumList(repos.map((repo) => repo.closedIssues)),
+
+    // These metrics are for the entire time since the repository has existed
     issues: sumList(repos.map((repo) => repo.issues)),
     internalIssues: sumList(repos.map((repo) => repo.internalIssues)),
     externalIssues: sumList(repos.map((repo) => repo.externalIssues)),
@@ -959,44 +716,34 @@ function aggregateRepoData(repos) {
     percentOldIssues: toPercent(oldIssues / openIssues),
     percentIssuesClosedByPullRequest: toPercent(sumList(repos.map((repo) => repo.closedByPullRequestIssues)) / sumList(repos.map((repo) => repo.closedIssuesTotal))),
     averageIssueOpenTime: averageList(concatenateLists(repos.map((repo) => repo.issueOpenTimes))),
-    pullRequests: sumList(repos.map((repo) => repo.pullRequests)),
-    internalPullRequests: sumList(repos.map((repo) => repo.internalPullRequests)),
-    externalPullRequests: sumList(repos.map((repo) => repo.externalPullRequests)),
-    openPullRequests: sumList(repos.map((repo) => repo.openPullRequests)),
-    averagePullRequestMergeTime: averageList(concatenateLists(repos.map((repo) => repo.pullRequestOpenTimes))),
-    averagePullRequestMergeTimeInterval: averageList(concatenateLists(repos.map((repo) => repo.pullRequestOpenTimesInterval))),
+
+    // These metrics are for the time period provided through workflow inputs
+    contributorsThisPeriod: unionSetSize(repos.map((repo) => repo.contributorsListThisPeriod)),
+    contributorsThisPeriodInternal: unionSetSize(repos.map((repo) => repo.contributorsListThisPeriodInternal)),
+    contributorsThisPeriodExternal: unionSetSize(repos.map((repo) => repo.contributorsListThisPeriodExternal)),
+    contributorsThisPeriodFirstTimeContributor: unionSetSize(repos.map((repo) => repo.contributorsListThisPeriodFirstTimeContributor)),
+
+    // These metrics are for the entire time since the repository has existed
     contributorsAllTime: unionSetSize(repos.map((repo) => repo.contributorsListAllTime)),
     contributorsAllTimeInternal: unionSetSize(repos.map((repo) => repo.contributorsListAllTimeInternal)),
     contributorsAllTimeExternal: unionSetSize(repos.map((repo) => repo.contributorsListAllTimeExternal)),
 
-    // These metrics are for the time period provided through command line arguments
-    openedIssues: sumList(repos.map((repo) => repo.openedIssues)),
-    openedIssuesInternal: sumList(repos.map((repo) => repo.openedIssuesInternal)),
-    openedIssuesExternal: sumList(repos.map((repo) => repo.openedIssuesExternal)),
-    openedIssuesFirstTimeContributor: sumList(repos.map((repo) => repo.openedIssuesFirstTimeContributor)),
-    closedIssues: sumList(repos.map((repo) => repo.closedIssues)),
-    openedPullRequests: sumList(repos.map((repo) => repo.openedPullRequests)),
-    openedPullRequestsInternal: sumList(repos.map((repo) => repo.openedPullRequestsInternal)),
-    openedPullRequestsExternal: sumList(repos.map((repo) => repo.openedPullRequestsExternal)),
-    openedPullRequestsFirstTimeContributor: sumList(repos.map((repo) => repo.openedPullRequestsFirstTimeContributor)),
-    mergedPullRequests: sumList(repos.map((repo) => repo.mergedPullRequests)),
-    closedPullRequests: sumList(repos.map((repo) => repo.closedPullRequests)),
-    contributorsThisPeriod: unionSetSize(repos.map((repo) => repo.contributorsListThisPeriod)),
-    contributorsThisPeriodInternal: unionSetSize(repos.map((repo) => repo.contributorsListThisPeriodInternal)),
-    contributorsThisPeriodExternal: unionSetSize(repos.map((repo) => repo.contributorsListThisPeriodExternal)),
-    contributorsThisPeriodFirstTimeContributor: unionSetSize(repos.map((repo) => repo.contributorsListThisPeriodFirstTimeContributor))
+    // These metrics are for the entire time since the repository has existed
+    stars: sumList(repos.map((repo) => repo.stars)),
+    watches: sumList(repos.map((repo) => repo.watches)),
+    forks: sumList(repos.map((repo) => repo.forks))
   }
   return totalData
 }
 
-// Writes the data for each repo as well as repos combined into a .csv report in the reports folder.
+// Writes the data for each repo as well as repos combined into a CSV/JSON report in the reports folder.
 async function pushCSV(data) {
   try {
     // Set sorting settings and add header to array
     const columns = {
       repo: 'Repo Name',
 
-      // These metrics are for the time period provided
+      // These metrics are for the time period provided through workflow inputs
       openedPullRequests: `PRs Opened (${columnDate})`,
       openedPullRequestsInternal: `PRs Opened Int (${columnDate})`,
       openedPullRequestsExternal: `PRs Opened Ext (${columnDate})`,
@@ -1005,21 +752,23 @@ async function pushCSV(data) {
       averagePullRequestMergeTimeInterval: `PR turnaround time (${columnDate})`,
       closedPullRequests: `PRs Closed (${columnDate})`,
 
-      // These metrics are for all time as of the time of the script running
+      // These metrics are for the entire time since the repository has existed
       openPullRequests: 'PRs Open (all time)',
+      mergedPullRequestsAllTime: 'PRs Merged (all time)',
+      closedPullRequestsAllTime: 'PRs Closed (all time)',
       averagePullRequestMergeTime: 'PR turnaround time (all time)',
       pullRequests: 'Total PRs (all time)',
       internalPullRequests: 'Total PRs Int (all time)',
       externalPullRequests: 'Total PRs Ext (all time)',
 
-      // These metrics are for the time period provided
+      // These metrics are for the time period provided through workflow inputs
       openedIssues: `Issues Opened (${columnDate})`,
       openedIssuesInternal: `Issues Opened Int (${columnDate})`,
       openedIssuesExternal: `Issues Opened Ext (${columnDate})`,
       openedIssuesFirstTimeContributor: `Issues Opened FTC (${columnDate})`,
       closedIssues: `Issues Closed (${columnDate})`,
 
-      // These metrics are for all time as of the time of the script running
+      // These metrics are for the entire time since the repository has existed
       issues: 'Total Issues (all time)',
       internalIssues: 'Total Issues Int (all time)',
       externalIssues: 'Total Issues Ext (all time)',
@@ -1031,18 +780,18 @@ async function pushCSV(data) {
       percentIssuesClosedByPullRequest: '% Issues Closed by PR (all time)',
       averageIssueOpenTime: 'Average Issue open days (all time)',
 
-      // These metrics are for the time period provided
+      // These metrics are for the time period provided through workflow inputs
       contributorsThisPeriod: `Contributors (${columnDate})`,
       contributorsThisPeriodInternal: `Contributors Int (${columnDate})`,
       contributorsThisPeriodExternal: `Contributors Ext (${columnDate})`,
       contributorsThisPeriodFirstTimeContributor: `Contributors FTC (${columnDate})`,
 
-      // These metrics are for all time as of the time of the script running
+      // These metrics are for the entire time since the repository has existed
       contributorsAllTime: 'Contributors (all time)',
       contributorsAllTimeInternal: 'Contributors Int (all time)',
       contributorsAllTimeExternal: 'Contributors Ext (all time)',
 
-      // These metrics are for all time as of the time of the script running
+      // These metrics are for the entire time since the repository has existed
       stars: 'Stars (all time)',
       watches: 'Watches (all time)',
       forks: 'Forks (all time)'
@@ -1057,16 +806,18 @@ async function pushCSV(data) {
 
     // Prepare path/filename, repo/org context and commit name/email variables
     let reportPath
+    const teamSuffix = team ? `-${team}` : ''
     if (diffReport === 'true') {
-      reportPath = { path: `reports/${org}-repo-metrics-report-${fileDate}.csv` }
+      reportPath = { path: `reports/${org}${teamSuffix}-repo-metrics-report-${fileDate}.csv` }
     } else {
-      reportPath = { path: `reports/${org}-${new Date().toISOString().substring(0, 19) + 'Z'}-${fileDate}.csv` }
+      reportPath = { path: `reports/${org}${teamSuffix}-${new Date().toISOString().substring(0, 19).replace(/:/g, '-') + 'Z'}-${fileDate}.csv` }
     }
+
     const opts = {
       owner,
       repo,
       path: reportPath,
-      message: `${new Date().toISOString().slice(0, 10)} Organization metrics report`,
+      message: `${new Date().toISOString().slice(0, 10)} organization metrics report`,
       content: Buffer.from(csv).toString('base64'),
       committer: {
         name: committerName,
@@ -1094,25 +845,87 @@ async function pushCSV(data) {
       ...reportPath
     })
   } catch (error) {
-    core.setFailed(error.message)
+    core.setFailed(JSON.stringify(error))
   }
 }
 
 // Create and push optional JSON report
 async function json(data) {
   try {
+    const jsonData = data.map((repo) => {
+      return {
+        repo: repo.repo,
+
+        // These metrics are for the time period provided through workflow inputs
+        openedPullRequests: repo.openedPullRequests,
+        openedPullRequestsInternal: repo.openedPullRequestsInternal,
+        openedPullRequestsExternal: repo.openedPullRequestsExternal,
+        openedPullRequestsFirstTimeContributor: repo.openedPullRequestsFirstTimeContributor,
+        mergedPullRequests: repo.mergedPullRequests,
+        averagePullRequestMergeTimeInterval: repo.averagePullRequestMergeTimeInterval,
+        closedPullRequests: repo.closedPullRequests,
+
+        // These metrics are for the entire time since the repository has existed
+        openPullRequests: repo.openPullRequests,
+        mergedPullRequestsAllTime: repo.mergedPullRequestsAllTime,
+        closedPullRequestsAllTime: repo.closedPullRequestsAllTime,
+        averagePullRequestMergeTime: repo.averagePullRequestMergeTime,
+        pullRequests: repo.pullRequests,
+        internalPullRequests: repo.internalPullRequests,
+        externalPullRequests: repo.externalPullRequests,
+
+        // These metrics are for the time period provided through workflow inputs
+        openedIssues: repo.openedIssues,
+        openedIssuesInternal: repo.openedIssuesInternal,
+        openedIssuesExternal: repo.openedIssuesExternal,
+        openedIssuesFirstTimeContributor: repo.openedIssuesFirstTimeContributor,
+        closedIssues: repo.closedIssues,
+
+        // These metrics are for the entire time since the repository has existed
+        issues: repo.issues,
+        internalIssues: repo.internalIssues,
+        externalIssues: repo.externalIssues,
+        openIssues: repo.openIssues,
+        staleIssues: repo.staleIssues,
+        percentStaleIssues: repo.percentStaleIssues,
+        oldIssues: repo.oldIssues,
+        percentOldIssues: repo.percentOldIssues,
+        percentIssuesClosedByPullRequest: repo.percentIssuesClosedByPullRequest,
+        averageIssueOpenTime: repo.averageIssueOpenTime,
+
+        // These metrics are for the time period provided through workflow inputs
+        contributorsThisPeriod: repo.contributorsThisPeriod,
+        contributorsThisPeriodInternal: repo.contributorsThisPeriodInternal,
+        contributorsThisPeriodExternal: repo.contributorsThisPeriodExternal,
+        contributorsThisPeriodFirstTimeContributor: repo.contributorsThisPeriodFirstTimeContributor,
+
+        // These metrics are for the entire time since the repository has existed
+        contributorsAllTime: repo.contributorsAllTime,
+        contributorsAllTimeInternal: repo.contributorsAllTimeInternal,
+        contributorsAllTimeExternal: repo.contributorsAllTimeExternal,
+
+        // These metrics are for the entire time since the repository has existed
+        stars: repo.stars,
+        watches: repo.watches,
+        forks: repo.forks
+      }
+    })
+
     let reportPath
-    const sortArray = orderBy(data, [sortColumn], [sortOrder])
+    const teamSuffix = team ? `-${team}` : ''
+    const sortArray = orderBy(jsonData, [sortColumn], [sortOrder])
+    sortArray.push(aggregateRepoData(data))
     if (diffReport === 'true') {
-      reportPath = { path: `reports/${org}-repo-metrics-report-${fileDate}.json` }
+      reportPath = { path: `reports/${org}${teamSuffix}-repo-metrics-report-${fileDate}.json` }
     } else {
-      reportPath = { path: `reports/${org}-${new Date().toISOString().substring(0, 19) + 'Z'}-${fileDate}.json` }
+      reportPath = { path: `reports/${org}${teamSuffix}-${new Date().toISOString().substring(0, 19).replace(/:/g, '-') + 'Z'}-${fileDate}.json` }
     }
+
     const opts = {
       owner,
       repo,
       path: reportPath,
-      message: `${new Date().toISOString().slice(0, 10)} repo collaborator report`,
+      message: `${new Date().toISOString().slice(0, 10)} organization metrics report`,
       content: Buffer.from(JSON.stringify(sortArray, null, 2)).toString('base64'),
       committer: {
         name: committerName,
@@ -1140,6 +953,6 @@ async function json(data) {
       ...reportPath
     })
   } catch (error) {
-    core.setFailed(error.message)
+    core.setFailed(JSON.stringify(error))
   }
 }

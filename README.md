@@ -34,25 +34,26 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Get organization repository metrics
-        uses: nicklegan/github-org-repo-metrics-action@v2.0.1
+        uses: nicklegan/github-org-repo-metrics-action@v2.1.0
         with:
           token: ${{ secrets.ORG_TOKEN }}
           fromdate: ${{ github.event.inputs.fromdate }} # Used for workflow dispatch input
           todate: ${{ github.event.inputs.todate }} # Used for workflow dispatch input
-        # org: ''
-        # days: '30'
-        # stale: '14'
-        # old: '120'
-        # sort: 'openedPullRequests'
-        # sort-order: 'desc'
-        # json: 'false'
-        # diff-report: 'false'
-        # appid: ${{ secrets.APPID }}
-        # privatekey: ${{ secrets.PRIVATEKEY }}
-        # installationid: ${{ secrets.INSTALLATIONID }}
+          # org: ''
+          # team: ''
+          # days: '30'
+          # stale: '14'
+          # old: '120'
+          # sort: 'openedPullRequests'
+          # sort-order: 'desc'
+          # json: 'false'
+          # diff-report: 'false'
+          # appid: ${{ secrets.APPID }}
+          # privatekey: ${{ secrets.PRIVATEKEY }}
+          # installationid: ${{ secrets.INSTALLATIONID }}
 ```
 
 ## GitHub secrets
@@ -65,13 +66,14 @@ jobs:
 [personal access token]: https://github.com/settings/tokens/new?scopes=repo,read:org&description=Org+Metrics+Action 'Personal Access Token'
 [enables diagnostic logging]: https://docs.github.com/actions/managing-workflow-runs/enabling-debug-logging#enabling-runner-diagnostic-logging 'Enabling runner diagnostic logging'
 
-:bulb: Disable [token expiration](https://github.blog/changelog/2021-07-26-expiration-options-for-personal-access-tokens/) to avoid failed workflow runs when running on a schedule.
+- :bulb: Disable [token expiration](https://github.blog/changelog/2021-07-26-expiration-options-for-personal-access-tokens/) to avoid failed workflow runs when running on a schedule.
 
 ## Action inputs
 
 | Name              | Description                                                             | Default                     | Location            | Required |
 | :---------------- | :---------------------------------------------------------------------- | :-------------------------- | :------------------ | :------- |
 | `org`             | Organization different than workflow context                            |                             | [workflow.yml]      | `false`  |
+| `team`            | Collect data only for repositories belonging to a specified team        |                             | [workflow.yml]      | `false`  |
 | `days`            | Amount of days in the past to collect data for                          | `30`                        | [workflow.yml]      | `false`  |
 | `stale`           | Amount of days for an issue to be marked as stale                       | `14`                        | [workflow.yml]      | `false`  |
 | `old`             | Amount of days for an issue to be marked as old                         | `120`                       | [workflow.yml]      | `false`  |
@@ -88,7 +90,10 @@ jobs:
 [action.yml]: action.yml 'action.yml'
 [workflow_dispatch]: https://docs.github.com/actions/using-workflows/events-that-trigger-workflows#workflow_dispatch
 
-:bulb: JSON naming details used for sorting columns in the workflow file are specified below.
+- :bulb: JSON naming details used for sorting columns in the workflow file are specified below.
+- :bulb: Repositories belonging to a team can be managed through GitHub, visit the [GitHub Docs] for more info.
+
+[github docs]: https://docs.github.com/organizations/managing-user-access-to-your-organizations-repositories/managing-repository-roles/managing-team-access-to-an-organization-repository
 
 ## Workflow dispatch inputs
 
@@ -158,7 +163,10 @@ For larger organizations it is recommended to use this method as more API reques
 | GitHub App Permission                     | Access           |
 | :---------------------------------------- | :--------------- |
 | `Repository Permissions:Contents`         | `read and write` |
+| `Repository Permissions:Issues`           | `read`           |
+| `Repository Permissions:Pull Requests`    | `read`           |
 | `Organization Permissions:Administration` | `read`           |
+| `Organization Permissions:Members`        | `read`           |
 
 After registration [install the GitHub App](https://docs.github.com/developers/apps/managing-github-apps/installing-github-apps) on your organization. Store the below App values as secrets.
 
